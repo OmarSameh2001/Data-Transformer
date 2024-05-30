@@ -50,17 +50,28 @@ function App() {
       try {
         // Read MongoDB JSON file content
         const fileContent = await readFile(jsonFile);
-        const mongoData = JSON.parse(fileContent);
+        const jsonData = JSON.parse(fileContent);
 
-        if (mongoData.length === 0) {
+        if (jsonData.length === 0) {
           alert("MongoDB JSON is empty");
           return;
         }
+        const jsonFlat = jsonData.map((obj) => {
+          const flatObj = {};
+          for (let key in obj) {
+            if (Array.isArray(obj[key])) {
+              flatObj[key] = obj[key].map((item) => parseValue(item)).join("-");
+            } else {
+              flatObj[key] = parseValue(obj[key]);
+            }
+          }
+          return flatObj;
+        });
 
         // Get unique columns and handle nested objects (assuming parseValue handles $oid and $date)
         const columns = [
           ...new Set(
-            mongoData.flatMap((item) =>
+            jsonFlat.flatMap((item) =>
               Object.keys(item).map((col) => {
                 const parsedValue = parseValue(item[col]);
                 return parsedValue !== item[col]
@@ -70,32 +81,34 @@ function App() {
             )
           ),
         ];
+        
 
-        console.log("Columns:", columns); // Log columns for debugging
+        //console.log("Columns:", columns); // Log columns for debugging
 
         // Create CSV content
         const csvContent = [
           columns.join(","),
-          ...mongoData.map((item) =>
+          ...jsonFlat.map((item) =>
             columns
               .map((col) => {
-                const [key, subKey] = col.split("_");
-                return subKey ? parseValue(item[key]) || "" : item[col];
+                
+                return item[col]
               })
               .join(",")
           ),
         ].join("\n");
+        console.log("CSV content:", csvContent);
 
-        console.log("CSV content:", csvContent); // Log CSV content for debugging
+        //console.log("CSV content:", csvContent); // Log CSV content for debugging
 
         // Trigger download of CSV file
         const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = downloadData ? `${downloadData}.csv` : "mongo_to_sql.csv";
+        a.download = downloadData ? `${downloadData}.csv` : "json_to_csv.csv";
         a.click();
-        resetValues();
+        
       } catch (error) {
         console.error("Error during conversion:", error);
         // Handle errors gracefully, e.g., display an error message to the user
@@ -136,9 +149,9 @@ function App() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = downloadData ? `${downloadData}.json` : "sql_to_mongo.json";
+      a.download = downloadData ? `${downloadData}.json` : "csv_to_json.json";
       a.click();
-      resetValues();
+      
     }
   };
   const transformCsvtoSql = async () => {
@@ -179,7 +192,7 @@ function App() {
       a.href = url;
       a.download = downloadData ? `${downloadData}.sql` : "csv_to_sql.sql";
       a.click();
-      resetValues();
+      
     }
   };
 
@@ -196,8 +209,22 @@ function App() {
           return;
         }
 
+        // Flatten the JSON structure and handle nested arrays
+        const flattenedData = jsonData.map((obj) => {
+          const flatObj = {};
+          for (let key in obj) {
+            if (Array.isArray(obj[key])) {
+              flatObj[key] = obj[key].map((item) => parseValue(item)).join(",");
+            } else {
+              flatObj[key] = parseValue(obj[key]);
+            }
+          }
+          return flatObj;
+        });
+        console.log(flattenedData);
+
         // Generate SQL INSERT statement from JSON data
-        const columns = Object.keys(jsonData[0])
+        const columns = Object.keys(flattenedData[0])
           .map((key) => `${key} VARCHAR(255)`)
           .join(", ");
         const sqlCreate = `CREATE TABLE ${
@@ -205,7 +232,7 @@ function App() {
         } (${columns});`;
         const sqlContent = `INSERT INTO ${
           downloadData ? downloadData : "json_table"
-        } (${Object.keys(jsonData[0]).join(", ")}) VALUES\n${jsonData
+        } (${Object.keys(flattenedData[0]).join(", ")}) VALUES\n${flattenedData
           .map(
             (obj) =>
               `(${Object.keys(obj)
@@ -218,9 +245,9 @@ function App() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = downloadData ? `${downloadData}.sql` : "mongo_to_sql.sql";
+        a.download = downloadData ? `${downloadData}.sql` : "json_to_sql.sql";
         a.click();
-        resetValues();
+        
       } catch (error) {
         console.error("Oh my, an error occurred during the conversion:", error);
       }
@@ -235,26 +262,54 @@ function App() {
       <h1 style={{ color: "white", textDecoration: "underline" }}>
         Data Transformer
       </h1>
-
       <div
         className="card align-items-center col-md-3 m-1 p-1"
         style={{ minWidth: "30vw", maxWidth: "90vw" }}
       >
-        <h2>Transform JSON to CSV</h2>
+        <h2>Transform JSON to SQL</h2>
         <img
-          src={require("./images/jsontocsv.png")}
+          src={require("./images/jsontosql.png")}
           className="card-image mb-2"
           style={{ width: "250px", height: "150px", maxWidth: "90%" }}
         />
-        <input type="file" onChange={handleJSONFileChange} style={{ maxWidth: "80%"}}/>
+        <input
+          type="file"
+          onChange={handleJSONFileChange}
+          style={{ maxWidth: "80%" }}
+        />
         <input
           type="text"
           placeholder="Enter new file name (optional)"
           style={{ width: "80%", marginTop: "5px" }}
           onChange={handleFileNameChange}
         />
-        <button className="btn btn-success mt-1" onClick={transformJSONtoCSV}>
-          Transform to CSV
+        <button className="btn btn-success mt-1" onClick={transformJSONtoSQL}>
+          Transform to SQL query
+        </button>
+      </div>
+      <div
+        className="card align-items-center col-md-3 m-1 p-1"
+        style={{ minWidth: "30vw", maxWidth: "90vw" }}
+      >
+        <h2>Transform CSV to SQL</h2>
+        <img
+          src={require("./images/csvtosql.png")}
+          className="card-image mb-2"
+          style={{ width: "250px", height: "150px", maxWidth: "90%" }}
+        />
+        <input
+          type="file"
+          onChange={handleCsvFileChange}
+          style={{ maxWidth: "80%" }}
+        />
+        <input
+          type="text"
+          placeholder="Enter new file name (optional)"
+          style={{ width: "80%", marginTop: "5px" }}
+          onChange={handleFileNameChange}
+        />
+        <button className="btn btn-success mt-1" onClick={transformCsvtoSql}>
+          Transform to SQL query
         </button>
       </div>
 
@@ -266,9 +321,13 @@ function App() {
         <img
           src={require("./images/csvtojson.jpg")}
           className="card-image mb-2"
-          style={{ width: "250px", height: "150px", maxWidth: "90%"}}
+          style={{ width: "250px", height: "150px", maxWidth: "90%" }}
         />
-        <input type="file" onChange={handleCsvFileChange} style={{ maxWidth: "80%"}}/>
+        <input
+          type="file"
+          onChange={handleCsvFileChange}
+          style={{ maxWidth: "80%" }}
+        />
         <input
           type="text"
           placeholder="Enter new file name (optional)"
@@ -279,47 +338,29 @@ function App() {
           Transform to JSON
         </button>
       </div>
-
       <div
         className="card align-items-center col-md-3 m-1 p-1"
         style={{ minWidth: "30vw", maxWidth: "90vw" }}
       >
-        <h2>Transform CSV to SQL</h2>
+        <h2>Transform JSON to CSV</h2>
         <img
-          src={require("./images/csvtosql.png")}
+          src={require("./images/jsontocsv.png")}
           className="card-image mb-2"
           style={{ width: "250px", height: "150px", maxWidth: "90%" }}
         />
-        <input type="file" onChange={handleCsvFileChange} style={{ maxWidth: "80%"}}/>
+        <input
+          type="file"
+          onChange={handleJSONFileChange}
+          style={{ maxWidth: "80%" }}
+        />
         <input
           type="text"
           placeholder="Enter new file name (optional)"
           style={{ width: "80%", marginTop: "5px" }}
           onChange={handleFileNameChange}
         />
-        <button className="btn btn-success mt-1" onClick={transformCsvtoSql}>
-          Transform to SQL query
-        </button>
-      </div>
-      <div
-        className="card align-items-center col-md-3 m-1 p-1"
-        style={{ minWidth: "30vw", maxWidth: "90vw" }}
-      >
-        <h2>Transform JSON to SQL</h2>
-        <img
-          src={require("./images/jsontosql.png")}
-          className="card-image mb-2"
-          style={{ width: "250px", height: "150px", maxWidth: "90%" }}
-        />
-        <input type="file" onChange={handleJSONFileChange} style={{ maxWidth: "80%"}}/>
-        <input
-          type="text"
-          placeholder="Enter new file name (optional)"
-          style={{ width: "80%", marginTop: "5px" }}
-          onChange={handleFileNameChange}
-        />
-        <button className="btn btn-success mt-1" onClick={transformJSONtoSQL}>
-          Transform to SQL query
+        <button className="btn btn-success mt-1" onClick={transformJSONtoCSV}>
+          Transform to CSV
         </button>
       </div>
     </div>
