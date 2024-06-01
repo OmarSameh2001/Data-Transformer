@@ -124,7 +124,8 @@ function App() {
         .split("\n")
         .filter((line) => line.trim());
 
-      const columns = headerLine.split(","); // Extract column names from header
+      let newHeaderLine = headerLine.replace(/,/g, "");
+      const columns = newHeaderLine.split(","); // Extract column names from header
       const jsonData = lines.map((line) => {
         const values = line.split(","); // Split line into values
         const obj = {};
@@ -162,7 +163,8 @@ function App() {
         .filter((line) => line.trim());
 
       const tableName = downloadData ? downloadData : "json_table";
-      const columns = headerLine.split(",");
+      let newHeaderLine = headerLine.replace(/,/g, "");
+      const columns = newHeaderLine.split(",");
 
       let createTableSql = `CREATE TABLE ${tableName} (\n`;
       createTableSql += columns
