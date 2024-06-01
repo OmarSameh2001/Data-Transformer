@@ -7,11 +7,11 @@ function App() {
   const [csvFile, setCsvFile] = useState(null);
   const [downloadData, setDownloadData] = useState(null);
 
-  const resetValues = () => {
+  /*const resetValues = () => {
     setJsonFile(null);
     setCsvFile(null);
     setDownloadData(null);
-  };
+  };*/
 
   const handleFileNameChange = (event) => {
     setDownloadData(event.target.value);
@@ -33,6 +33,7 @@ function App() {
     });
   };
 
+  // Function to parse JSON values to get value of objects
   const parseValue = (value) => {
     if (typeof value === "object" && value !== null) {
       if ("$oid" in value) {
@@ -44,16 +45,21 @@ function App() {
     return value;
   };
 
-  // Function to transform MongoDB JSON to SQL CSV
+  function splitCSVLine(line) {
+    const regex = /,(?=(?:[^"]*"[^"]*")*[^"]*$)/;
+    return line.split(regex).map((column) => column.replace(/"/g, "")); // Remove quotes
+  }
+
+  // Function to transform JSON to SQL CSV
   const transformJSONtoCSV = async () => {
     if (jsonFile) {
       try {
-        // Read MongoDB JSON file content
+        // Read JSON file content
         const fileContent = await readFile(jsonFile);
         const jsonData = JSON.parse(fileContent);
 
         if (jsonData.length === 0) {
-          alert("MongoDB JSON is empty");
+          alert("JSON is empty");
           return;
         }
         const jsonFlat = jsonData.map((obj) => {
@@ -68,7 +74,7 @@ function App() {
           return flatObj;
         });
 
-        // Get unique columns and handle nested objects (assuming parseValue handles $oid and $date)
+        // Get unique columns and handle nested objects
         const columns = [
           ...new Set(
             jsonFlat.flatMap((item) =>
@@ -81,9 +87,6 @@ function App() {
             )
           ),
         ];
-        
-
-        //console.log("Columns:", columns); // Log columns for debugging
 
         // Create CSV content
         const csvContent = [
@@ -91,15 +94,12 @@ function App() {
           ...jsonFlat.map((item) =>
             columns
               .map((col) => {
-                
-                return item[col]
+                return item[col];
               })
               .join(",")
           ),
         ].join("\n");
         console.log("CSV content:", csvContent);
-
-        //console.log("CSV content:", csvContent); // Log CSV content for debugging
 
         // Trigger download of CSV file
         const blob = new Blob([csvContent], { type: "text/csv" });
@@ -108,7 +108,6 @@ function App() {
         a.href = url;
         a.download = downloadData ? `${downloadData}.csv` : "json_to_csv.csv";
         a.click();
-        
       } catch (error) {
         console.error("Error during conversion:", error);
         // Handle errors gracefully, e.g., display an error message to the user
@@ -116,7 +115,7 @@ function App() {
     }
   };
 
-  // Function to transform SQL CSV to MongoDB JSON
+  // Function to transform SQL CSV to JSON
   const transformCSVtoJSON = async () => {
     if (csvFile) {
       const fileContent = await readFile(csvFile); // Read SQL CSV file content
@@ -124,7 +123,7 @@ function App() {
         .split("\n")
         .filter((line) => line.trim());
 
-      const columns = headerLine.split(","); // Extract column names from header
+      const columns = splitCSVLine(headerLine); // Extract column names from header
       const jsonData = lines.map((line) => {
         const values = line.split(","); // Split line into values
         const obj = {};
@@ -151,9 +150,10 @@ function App() {
       a.href = url;
       a.download = downloadData ? `${downloadData}.json` : "csv_to_json.json";
       a.click();
-      
     }
   };
+
+  // Function to transform CSV to SQL
   const transformCsvtoSql = async () => {
     if (csvFile) {
       const fileContent = await readFile(csvFile);
@@ -161,8 +161,9 @@ function App() {
         .split("\n")
         .filter((line) => line.trim());
 
+      const columns = splitCSVLine(headerLine);
+
       const tableName = downloadData ? downloadData : "json_table";
-      const columns = headerLine.split(",");
 
       let createTableSql = `CREATE TABLE ${tableName} (\n`;
       createTableSql += columns
@@ -192,15 +193,14 @@ function App() {
       a.href = url;
       a.download = downloadData ? `${downloadData}.sql` : "csv_to_sql.sql";
       a.click();
-      
     }
   };
 
-  // Function to transform MongoDB JSON to SQL
+  // Function to transform JSON to SQL
   const transformJSONtoSQL = async () => {
     if (jsonFile) {
       try {
-        // Read MongoDB JSON file content
+        // Read JSON file content
         const fileContent = await readFile(jsonFile);
         const jsonData = JSON.parse(fileContent);
 
@@ -247,7 +247,6 @@ function App() {
         a.href = url;
         a.download = downloadData ? `${downloadData}.sql` : "json_to_sql.sql";
         a.click();
-        
       } catch (error) {
         console.error("Oh my, an error occurred during the conversion:", error);
       }
