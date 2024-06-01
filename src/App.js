@@ -44,6 +44,9 @@ function App() {
     }
     return value;
   };
+  const removecomma = (str) => {
+        return str.replace(/,/g, '');
+      }
 
   function splitCSVLine(line) {
     const regex = /,(?=(?:[^"]*"[^"]*")*[^"]*$)/;
@@ -167,9 +170,10 @@ function App() {
 
       let createTableSql = `CREATE TABLE ${tableName} (\n`;
       createTableSql += columns
-        .map((column) => `${column} VARCHAR(255)`)
+        .map((column) => `${removecomma(column)} VARCHAR(255)`)
         .join(",\n");
       createTableSql += "\n);\n";
+      
 
       let insertSql = `INSERT INTO ${tableName} (${columns.join(
         ","
