@@ -43,6 +43,9 @@ function App() {
     }
     return value;
   };
+  const removecomma = (str) => {
+        return str.replace(/,/g, '');
+      }
 
   // Function to transform MongoDB JSON to SQL CSV
   const transformJSONtoCSV = async () => {
@@ -124,8 +127,7 @@ function App() {
         .split("\n")
         .filter((line) => line.trim());
 
-      let newHeaderLine = headerLine.replace(/,/g, "");
-      const columns = newHeaderLine.split(","); // Extract column names from header
+      const columns = headerLine.split(","); // Extract column names from header
       const jsonData = lines.map((line) => {
         const values = line.split(","); // Split line into values
         const obj = {};
@@ -163,14 +165,14 @@ function App() {
         .filter((line) => line.trim());
 
       const tableName = downloadData ? downloadData : "json_table";
-      let newHeaderLine = headerLine.replace(/,/g, "");
-      const columns = newHeaderLine.split(",");
+      const columns = headerLine.split(",");
 
       let createTableSql = `CREATE TABLE ${tableName} (\n`;
       createTableSql += columns
-        .map((column) => `${column} VARCHAR(255)`)
+        .map((column) => `${removecomma(column)} VARCHAR(255)`)
         .join(",\n");
       createTableSql += "\n);\n";
+      
 
       let insertSql = `INSERT INTO ${tableName} (${columns.join(
         ","
